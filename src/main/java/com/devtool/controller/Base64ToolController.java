@@ -15,11 +15,14 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
+import com.devtool.dto.ApiResponse;
 import com.devtool.dto.Base64BasicAuthResponse;
 import com.devtool.dto.Base64BinaryResponse;
 import com.devtool.dto.Base64ContentRequest;
 import com.devtool.dto.Base64ValueRequest;
 import com.devtool.dto.Base64ValueResponse;
+import com.devtool.dto.ErrorResponse;
+import com.devtool.service.ApiResponseFactory;
 import com.devtool.service.Base64ToolService;
 import com.devtool.service.Base64ToolService.BasicAuthParts;
 import com.devtool.service.Base64ToolService.DecodedFile;
@@ -29,90 +32,117 @@ import com.devtool.service.Base64ToolService.DecodedFile;
 public class Base64ToolController {
 
 	private final Base64ToolService base64ToolService;
+	private final ApiResponseFactory apiResponseFactory;
 
-	public Base64ToolController(Base64ToolService base64ToolService) {
+	public Base64ToolController(Base64ToolService base64ToolService, ApiResponseFactory apiResponseFactory) {
 		this.base64ToolService = base64ToolService;
+		this.apiResponseFactory = apiResponseFactory;
 	}
 
 	@GetMapping("/tools")
-	public Map<String, java.util.List<String>> supportedTools() {
-		return base64ToolService.supportedTools();
+	public ApiResponse<Map<String, java.util.List<String>>> supportedTools() {
+		return apiResponseFactory.success(base64ToolService.supportedTools(), "Base64 tools fetched successfully");
 	}
 
 	@PostMapping("/encode/text")
-	public Base64ValueResponse textToBase64(@RequestBody Base64ValueRequest request) {
-		return new Base64ValueResponse("Text to Base64", base64ToolService.encodeText(request.value()));
+	public ApiResponse<Base64ValueResponse> textToBase64(@RequestBody Base64ValueRequest request) {
+		return apiResponseFactory.success(
+				new Base64ValueResponse("Text to Base64", base64ToolService.encodeText(request.value())),
+				"Text encoded to Base64 successfully");
 	}
 
 	@PostMapping("/encode/html")
-	public Base64ValueResponse htmlToBase64(@RequestBody Base64ValueRequest request) {
-		return new Base64ValueResponse("HTML to Base64", base64ToolService.encodeHtml(request.value()));
+	public ApiResponse<Base64ValueResponse> htmlToBase64(@RequestBody Base64ValueRequest request) {
+		return apiResponseFactory.success(
+				new Base64ValueResponse("HTML to Base64", base64ToolService.encodeHtml(request.value())),
+				"HTML encoded to Base64 successfully");
 	}
 
 	@PostMapping("/encode/css")
-	public Base64ValueResponse cssToBase64(@RequestBody Base64ValueRequest request) {
-		return new Base64ValueResponse("CSS to Base64", base64ToolService.encodeCss(request.value()));
+	public ApiResponse<Base64ValueResponse> cssToBase64(@RequestBody Base64ValueRequest request) {
+		return apiResponseFactory.success(
+				new Base64ValueResponse("CSS to Base64", base64ToolService.encodeCss(request.value())),
+				"CSS encoded to Base64 successfully");
 	}
 
 	@PostMapping("/encode/url")
-	public Base64ValueResponse urlToBase64(@RequestBody Base64ValueRequest request) {
-		return new Base64ValueResponse("URL to Base64", base64ToolService.encodeUrl(request.value()));
+	public ApiResponse<Base64ValueResponse> urlToBase64(@RequestBody Base64ValueRequest request) {
+		return apiResponseFactory.success(
+				new Base64ValueResponse("URL to Base64", base64ToolService.encodeUrl(request.value())),
+				"URL encoded to Base64 successfully");
 	}
 
 	@PostMapping("/encode/hex")
-	public Base64ValueResponse hexToBase64(@RequestBody Base64ValueRequest request) {
-		return new Base64ValueResponse("Hex to Base64", base64ToolService.encodeHex(request.value()));
+	public ApiResponse<Base64ValueResponse> hexToBase64(@RequestBody Base64ValueRequest request) {
+		return apiResponseFactory.success(
+				new Base64ValueResponse("Hex to Base64", base64ToolService.encodeHex(request.value())),
+				"Hex encoded to Base64 successfully");
 	}
 
 	@PostMapping(path = "/encode/file", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-	public Base64BinaryResponse fileToBase64(@RequestParam("file") MultipartFile file) {
-		return buildBinaryResponse("File to Base64", file, base64ToolService.encodeFile(file));
+	public ApiResponse<Base64BinaryResponse> fileToBase64(@RequestParam("file") MultipartFile file) {
+		return apiResponseFactory.success(buildBinaryResponse("File to Base64", file, base64ToolService.encodeFile(file)),
+				"File encoded to Base64 successfully");
 	}
 
 	@PostMapping(path = "/encode/image", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-	public Base64BinaryResponse imageToBase64(@RequestParam("file") MultipartFile file) {
-		return buildBinaryResponse("Image to Base64", file, base64ToolService.encodeFile(file));
+	public ApiResponse<Base64BinaryResponse> imageToBase64(@RequestParam("file") MultipartFile file) {
+		return apiResponseFactory.success(buildBinaryResponse("Image to Base64", file, base64ToolService.encodeFile(file)),
+				"Image encoded to Base64 successfully");
 	}
 
 	@PostMapping(path = "/encode/audio", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-	public Base64BinaryResponse audioToBase64(@RequestParam("file") MultipartFile file) {
-		return buildBinaryResponse("Audio to Base64", file, base64ToolService.encodeFile(file));
+	public ApiResponse<Base64BinaryResponse> audioToBase64(@RequestParam("file") MultipartFile file) {
+		return apiResponseFactory.success(buildBinaryResponse("Audio to Base64", file, base64ToolService.encodeFile(file)),
+				"Audio encoded to Base64 successfully");
 	}
 
 	@PostMapping(path = "/encode/video", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-	public Base64BinaryResponse videoToBase64(@RequestParam("file") MultipartFile file) {
-		return buildBinaryResponse("Video to Base64", file, base64ToolService.encodeFile(file));
+	public ApiResponse<Base64BinaryResponse> videoToBase64(@RequestParam("file") MultipartFile file) {
+		return apiResponseFactory.success(buildBinaryResponse("Video to Base64", file, base64ToolService.encodeFile(file)),
+				"Video encoded to Base64 successfully");
 	}
 
 	@PostMapping(path = "/encode/pdf", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-	public Base64BinaryResponse pdfToBase64(@RequestParam("file") MultipartFile file) {
-		return buildBinaryResponse("PDF to Base64", file, base64ToolService.encodeFile(file));
+	public ApiResponse<Base64BinaryResponse> pdfToBase64(@RequestParam("file") MultipartFile file) {
+		return apiResponseFactory.success(buildBinaryResponse("PDF to Base64", file, base64ToolService.encodeFile(file)),
+				"PDF encoded to Base64 successfully");
 	}
 
 	@PostMapping("/decode/text")
-	public Base64ValueResponse base64ToText(@RequestBody Base64ValueRequest request) {
-		return new Base64ValueResponse("Base64 to Text", base64ToolService.decodeText(request.value()));
+	public ApiResponse<Base64ValueResponse> base64ToText(@RequestBody Base64ValueRequest request) {
+		return apiResponseFactory.success(
+				new Base64ValueResponse("Base64 to Text", base64ToolService.decodeText(request.value())),
+				"Base64 decoded to text successfully");
 	}
 
 	@PostMapping("/decode/ascii")
-	public Base64ValueResponse base64ToAscii(@RequestBody Base64ValueRequest request) {
-		return new Base64ValueResponse("Base64 to ASCII", base64ToolService.decodeAscii(request.value()));
+	public ApiResponse<Base64ValueResponse> base64ToAscii(@RequestBody Base64ValueRequest request) {
+		return apiResponseFactory.success(
+				new Base64ValueResponse("Base64 to ASCII", base64ToolService.decodeAscii(request.value())),
+				"Base64 decoded to ASCII successfully");
 	}
 
 	@PostMapping("/decode/hex")
-	public Base64ValueResponse base64ToHex(@RequestBody Base64ValueRequest request) {
-		return new Base64ValueResponse("Base64 to Hex", base64ToolService.decodeHex(request.value()));
+	public ApiResponse<Base64ValueResponse> base64ToHex(@RequestBody Base64ValueRequest request) {
+		return apiResponseFactory.success(
+				new Base64ValueResponse("Base64 to Hex", base64ToolService.decodeHex(request.value())),
+				"Base64 decoded to hex successfully");
 	}
 
 	@PostMapping("/decode/basic-auth")
-	public Base64BasicAuthResponse decodeBasicAuth(@RequestBody Base64ValueRequest request) {
+	public ApiResponse<Base64BasicAuthResponse> decodeBasicAuth(@RequestBody Base64ValueRequest request) {
 		BasicAuthParts parts = base64ToolService.decodeBasicAuth(request.value());
-		return new Base64BasicAuthResponse("Basic Auth Decode", parts.username(), parts.password());
+		return apiResponseFactory.success(
+				new Base64BasicAuthResponse("Basic Auth Decode", parts.username(), parts.password()),
+				"Basic auth decoded successfully");
 	}
 
 	@PostMapping("/decode/url")
-	public Base64ValueResponse decodeUrlEncodedText(@RequestBody Base64ValueRequest request) {
-		return new Base64ValueResponse("URL Decode", base64ToolService.decodeUrlEncodedText(request.value()));
+	public ApiResponse<Base64ValueResponse> decodeUrlEncodedText(@RequestBody Base64ValueRequest request) {
+		return apiResponseFactory.success(
+				new Base64ValueResponse("URL Decode", base64ToolService.decodeUrlEncodedText(request.value())),
+				"URL decoded successfully");
 	}
 
 	@PostMapping("/decode/file")
@@ -141,8 +171,9 @@ public class Base64ToolController {
 	}
 
 	@ExceptionHandler(IllegalArgumentException.class)
-	public ResponseEntity<Map<String, String>> handleIllegalArgument(IllegalArgumentException exception) {
-		return ResponseEntity.badRequest().body(Map.of("error", exception.getMessage()));
+	public ResponseEntity<ApiResponse<ErrorResponse>> handleIllegalArgument(IllegalArgumentException exception) {
+		return ResponseEntity.badRequest().body(
+				apiResponseFactory.badRequest(new ErrorResponse(exception.getMessage()), exception.getMessage()));
 	}
 
 	private Base64BinaryResponse buildBinaryResponse(String tool, MultipartFile file, String base64Value) {
