@@ -12,7 +12,9 @@ public class SwaggerConfig {
 
 	@Bean
 	public OpenAPI usersMicroserviceOpenAPI() {
-		return new OpenAPI().info(new Info().title("DevTool Service").description("3Idiots Service").version("ONO")
-				.contact(new Contact().name("3Idiots").email("vijaypopuri2021@gmail.com").url("")));
+		return new OpenAPI().info(new Info().title("DevTool Service")
+				.description("Developer helper APIs for encoding, decoding, and other utility workflows.")
+				.version("1.0.0")
+				.contact(new Contact().name("DevTool Team").email("dileepkumar26072022@gmail.com").url("")));
 	}
 }
