@@ -1,0 +1,7 @@
+com/devtool/service/UuidColorFileWebToolServiceTest.class
+com/devtool/service/NumberBaseToolServiceTest.class
+com/devtool/service/HashToolServiceTest.class
+com/devtool/service/JsonToolServiceTest.class
+com/devtool/service/TimestampToolServiceTest.class
+com/devtool/service/EscapeToolServiceTest.class
+com/devtool/service/TextToolServiceTest.class
