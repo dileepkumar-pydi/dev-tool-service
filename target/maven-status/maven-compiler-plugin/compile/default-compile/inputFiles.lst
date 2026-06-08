@@ -1,4 +1,5 @@
 /Users/mac/Documents/code/devTools/dev-tool-service/src/main/java/com/devtool/DevtoolApplication.java
+/Users/mac/Documents/code/devTools/dev-tool-service/src/main/java/com/devtool/config/CorsConfig.java
 /Users/mac/Documents/code/devTools/dev-tool-service/src/main/java/com/devtool/config/SwaggerConfig.java
 /Users/mac/Documents/code/devTools/dev-tool-service/src/main/java/com/devtool/controller/Base64ToolController.java
 /Users/mac/Documents/code/devTools/dev-tool-service/src/main/java/com/devtool/controller/ColorToolController.java
