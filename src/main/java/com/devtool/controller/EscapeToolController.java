@@ -35,6 +35,16 @@ public class EscapeToolController {
 		return apiResponseFactory.success(escapeToolService.supportedTools(), "Escape tools fetched successfully");
 	}
 
+	@PostMapping("/url/escape")
+	public ApiResponse<ValueResponse> escapeUrl(@RequestBody ValueRequest request) {
+		return success("URL Escape", escapeToolService.escapeUrl(request.value()), "URL escaped successfully");
+	}
+
+	@PostMapping("/url/unescape")
+	public ApiResponse<ValueResponse> unescapeUrl(@RequestBody ValueRequest request) {
+		return success("URL Unescape", escapeToolService.unescapeUrl(request.value()), "URL unescaped successfully");
+	}
+
 	@PostMapping("/html/escape")
 	public ApiResponse<ValueResponse> escapeHtml(@RequestBody ValueRequest request) {
 		return success("HTML Escape", escapeToolService.escapeHtml(request.value()), "HTML escaped successfully");
@@ -63,6 +73,18 @@ public class EscapeToolController {
 	@PostMapping("/java/unescape")
 	public ApiResponse<ValueResponse> unescapeJava(@RequestBody ValueRequest request) {
 		return success("Java Unescape", escapeToolService.unescapeJava(request.value()), "Java string unescaped successfully");
+	}
+
+	@PostMapping("/javascript/escape")
+	public ApiResponse<ValueResponse> escapeJavaScript(@RequestBody ValueRequest request) {
+		return success("JavaScript Escape", escapeToolService.escapeJavaScript(request.value()),
+				"JavaScript string escaped successfully");
+	}
+
+	@PostMapping("/javascript/unescape")
+	public ApiResponse<ValueResponse> unescapeJavaScript(@RequestBody ValueRequest request) {
+		return success("JavaScript Unescape", escapeToolService.unescapeJavaScript(request.value()),
+				"JavaScript string unescaped successfully");
 	}
 
 	@PostMapping("/sql/escape")

@@ -13,6 +13,8 @@ class TextToolServiceTest {
 	@Test
 	void shouldConvertCase() {
 		assertEquals("helloWorld", service.convertCase("hello world", "camel"));
+		assertEquals("Hello world", service.convertCase("HELLO WORLD", "sentence"));
+		assertEquals("cba", service.convertCase("abc", "reverse"));
 	}
 
 	@Test

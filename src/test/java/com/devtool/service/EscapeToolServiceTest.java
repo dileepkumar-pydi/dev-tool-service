@@ -15,6 +15,14 @@ class EscapeToolServiceTest {
 	}
 
 	@Test
+	void shouldEscapeAndUnescapeUrlAndJavaScript() {
+		assertEquals("hello+world", service.escapeUrl("hello world"));
+		assertEquals("hello world", service.unescapeUrl("hello+world"));
+		assertEquals("\\\"DevTools\\\"", service.escapeJavaScript("\"DevTools\""));
+		assertEquals("\"DevTools\"", service.unescapeJavaScript("\\\"DevTools\\\""));
+	}
+
+	@Test
 	void shouldEscapeAndUnescapeSql() {
 		assertEquals("O''Reilly", service.escapeSql("O'Reilly"));
 		assertEquals("O'Reilly", service.unescapeSql("O''Reilly"));
