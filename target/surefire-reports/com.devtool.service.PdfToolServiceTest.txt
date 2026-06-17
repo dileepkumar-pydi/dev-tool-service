@@ -1,0 +1,4 @@
+-------------------------------------------------------------------------------
+Test set: com.devtool.service.PdfToolServiceTest
+-------------------------------------------------------------------------------
+Tests run: 6, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 12.25 s -- in com.devtool.service.PdfToolServiceTest
