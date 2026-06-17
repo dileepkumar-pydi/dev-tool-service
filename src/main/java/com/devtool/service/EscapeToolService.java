@@ -1,5 +1,8 @@
 package com.devtool.service;
 
+import java.net.URLDecoder;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -12,9 +15,18 @@ public class EscapeToolService {
 
 	public Map<String, List<String>> supportedTools() {
 		Map<String, List<String>> tools = new LinkedHashMap<>();
-		tools.put("escapeTools", List.of("HTML Escape", "HTML Unescape", "JSON Escape", "JSON Unescape",
-				"Java Escape", "Java Unescape", "SQL Escape", "SQL Unescape", "XML Escape", "XML Unescape"));
+		tools.put("escapeTools", List.of("URL Escape", "URL Unescape", "HTML Escape", "HTML Unescape", "JSON Escape",
+				"JSON Unescape", "JavaScript Escape", "JavaScript Unescape", "Java Escape", "Java Unescape", "SQL Escape",
+				"SQL Unescape", "XML Escape", "XML Unescape"));
 		return tools;
+	}
+
+	public String escapeUrl(String value) {
+		return URLEncoder.encode(safeValue(value), StandardCharsets.UTF_8);
+	}
+
+	public String unescapeUrl(String value) {
+		return URLDecoder.decode(safeValue(value), StandardCharsets.UTF_8);
 	}
 
 	public String escapeHtml(String value) {
@@ -39,6 +51,14 @@ public class EscapeToolService {
 
 	public String unescapeJava(String value) {
 		return StringEscapeUtils.unescapeJava(safeValue(value));
+	}
+
+	public String escapeJavaScript(String value) {
+		return StringEscapeUtils.escapeEcmaScript(safeValue(value));
+	}
+
+	public String unescapeJavaScript(String value) {
+		return StringEscapeUtils.unescapeEcmaScript(safeValue(value));
 	}
 
 	public String escapeSql(String value) {

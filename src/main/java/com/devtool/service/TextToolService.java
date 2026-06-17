@@ -20,8 +20,8 @@ public class TextToolService {
 
 	public Map<String, List<String>> supportedTools() {
 		Map<String, List<String>> tools = new LinkedHashMap<>();
-		tools.put("textTools", List.of("Diff Checker", "Case Converter", "Slug Generator", "Regex Tester",
-				"Word Counter", "Character Counter"));
+		tools.put("textTools", List.of("Diff Checker", "Case Converter", "Sentence Case", "Reverse Text",
+				"Slug Generator", "Regex Tester", "Word Counter", "Character Counter"));
 		return tools;
 	}
 
@@ -79,6 +79,8 @@ public class TextToolService {
 		case "kebab" -> String.join("-", lowercaseWords(words));
 		case "constant" -> String.join("_", uppercaseWords(words));
 		case "title" -> String.join(" ", capitalizeWords(words));
+		case "sentence" -> toSentenceCase(words);
+		case "reverse" -> new StringBuilder(safeValue(value)).reverse().toString();
 		default -> throw new IllegalArgumentException("Unsupported target case: " + targetCase);
 		};
 	}
@@ -157,6 +159,11 @@ public class TextToolService {
 
 	private String lowerFirst(String value) {
 		return value.substring(0, 1).toLowerCase(Locale.ROOT) + value.substring(1);
+	}
+
+	private String toSentenceCase(List<String> words) {
+		String sentence = String.join(" ", lowercaseWords(words));
+		return sentence.substring(0, 1).toUpperCase(Locale.ROOT) + sentence.substring(1);
 	}
 
 	private String safeValue(String value) {
