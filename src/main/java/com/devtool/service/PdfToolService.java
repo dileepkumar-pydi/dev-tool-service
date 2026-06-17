@@ -1,7 +1,15 @@
 package com.devtool.service;
 
+import java.awt.color.ColorSpace;
+import java.awt.color.ICC_Profile;
+import java.awt.image.BufferedImage;
+import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.security.SecureRandom;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.LinkedHashMap;
@@ -10,26 +18,48 @@ import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
 
+import javax.imageio.ImageIO;
+
 import org.apache.pdfbox.io.MemoryUsageSetting;
 import org.apache.pdfbox.multipdf.PDFMergerUtility;
 import org.apache.pdfbox.pdmodel.PDDocument;
+import org.apache.pdfbox.pdmodel.PDDocumentCatalog;
+import org.apache.pdfbox.pdmodel.PDDocumentInformation;
 import org.apache.pdfbox.pdmodel.PDPage;
 import org.apache.pdfbox.pdmodel.PDPageContentStream;
+import org.apache.pdfbox.pdmodel.PDPageContentStream.AppendMode;
+import org.apache.pdfbox.pdmodel.common.PDMetadata;
 import org.apache.pdfbox.pdmodel.common.PDRectangle;
 import org.apache.pdfbox.pdmodel.font.PDType1Font;
+import org.apache.pdfbox.pdmodel.graphics.color.PDOutputIntent;
+import org.apache.pdfbox.pdmodel.graphics.image.LosslessFactory;
+import org.apache.pdfbox.pdmodel.graphics.image.PDImageXObject;
+import org.apache.pdfbox.rendering.PDFRenderer;
+import org.apache.xmpbox.XMPMetadata;
+import org.apache.xmpbox.schema.PDFAIdentificationSchema;
+import org.apache.xmpbox.xml.XmpSerializer;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 import com.devtool.dto.PdfBatchResponse;
 import com.devtool.dto.PdfFileResultResponse;
+import com.openhtmltopdf.pdfboxout.PdfRendererBuilder;
 
 @Service
 public class PdfToolService {
 
+	private static final Set<String> PDF_EXTENSIONS = Set.of("pdf");
+	private static final Set<String> JPG_EXTENSIONS = Set.of("jpg", "jpeg");
+	private static final Set<String> HTML_EXTENSIONS = Set.of("html", "htm");
+	private static final Set<String> WORD_EXTENSIONS = Set.of("doc", "docx");
+	private static final Set<String> POWERPOINT_EXTENSIONS = Set.of("ppt", "pptx");
+	private static final Set<String> EXCEL_EXTENSIONS = Set.of("xls", "xlsx");
+
 	public Map<String, List<String>> supportedTools() {
 		Map<String, List<String>> tools = new LinkedHashMap<>();
 		tools.put("pdfTools", List.of("Merge PDF", "Split PDF", "Compress PDF", "Rotate Pages", "Remove Pages",
-				"Reorder Pages", "Page Numbers"));
+				"Reorder Pages", "Page Numbers", "JPG to PDF", "PDF to JPG", "Word to PDF", "PowerPoint to PDF",
+				"Excel to PDF", "HTML to PDF", "PDF to Word", "PDF to PowerPoint", "PDF to Excel", "PDF to PDF/A"));
 		return tools;
 	}
 
@@ -44,24 +74,20 @@ public class PdfToolService {
 			merger.setDestinationStream(outputStream);
 
 			for (MultipartFile file : files) {
-				validatePdf(file);
+				validateFile(file, PDF_EXTENSIONS, "PDF");
 				merger.addSource(file.getInputStream());
 			}
 
 			merger.mergeDocuments(MemoryUsageSetting.setupMainMemoryOnly());
 			byte[] bytes = outputStream.toByteArray();
-			int pageCount;
-			try (PDDocument merged = PDDocument.load(bytes)) {
-				pageCount = merged.getNumberOfPages();
-			}
-			return batch("merge", List.of(result("merged-document.pdf", bytes, pageCount)));
+			return batch("merge", List.of(result("merged-document.pdf", "application/pdf", bytes, pageCount(bytes))));
 		} catch (IOException exception) {
 			throw new IllegalArgumentException("Unable to merge uploaded PDF files.", exception);
 		}
 	}
 
 	public PdfBatchResponse split(MultipartFile file, String mode, String ranges) {
-		validatePdf(file);
+		validateFile(file, PDF_EXTENSIONS, "PDF");
 		try (PDDocument source = PDDocument.load(file.getBytes())) {
 			List<PdfFileResultResponse> outputs = new ArrayList<>();
 			if ("every-page".equalsIgnoreCase(mode)) {
@@ -82,18 +108,19 @@ public class PdfToolService {
 	}
 
 	public PdfBatchResponse compress(MultipartFile file, String level) {
-		validatePdf(file);
+		validateFile(file, PDF_EXTENSIONS, "PDF");
 		try (PDDocument source = PDDocument.load(file.getBytes())) {
 			source.setAllSecurityToBeRemoved(true);
 			byte[] bytes = save(source);
-			return batch("compress", List.of(result(fileStem(file) + "-compressed.pdf", bytes, source.getNumberOfPages())));
+			return batch("compress", List.of(result(fileStem(file) + "-compressed.pdf", "application/pdf", bytes,
+					source.getNumberOfPages())));
 		} catch (IOException exception) {
 			throw new IllegalArgumentException("Unable to compress uploaded PDF file.", exception);
 		}
 	}
 
 	public PdfBatchResponse rotate(MultipartFile file, int angle) {
-		validatePdf(file);
+		validateFile(file, PDF_EXTENSIONS, "PDF");
 		if (!List.of(90, 180, 270).contains(angle)) {
 			throw new IllegalArgumentException("Rotation angle must be 90, 180, or 270.");
 		}
@@ -104,14 +131,15 @@ public class PdfToolService {
 				page.setRotation((current + angle) % 360);
 			}
 			byte[] bytes = save(source);
-			return batch("rotate", List.of(result(fileStem(file) + "-rotated.pdf", bytes, source.getNumberOfPages())));
+			return batch("rotate", List.of(result(fileStem(file) + "-rotated.pdf", "application/pdf", bytes,
+					source.getNumberOfPages())));
 		} catch (IOException exception) {
 			throw new IllegalArgumentException("Unable to rotate uploaded PDF file.", exception);
 		}
 	}
 
 	public PdfBatchResponse removePages(MultipartFile file, String pages) {
-		validatePdf(file);
+		validateFile(file, PDF_EXTENSIONS, "PDF");
 		try (PDDocument source = PDDocument.load(file.getBytes())) {
 			Set<Integer> pageNumbers = parsePageNumbers(pages, source.getNumberOfPages());
 			if (pageNumbers.size() >= source.getNumberOfPages()) {
@@ -124,15 +152,15 @@ public class PdfToolService {
 			}
 
 			byte[] bytes = save(source);
-			return batch("remove-pages",
-					List.of(result(fileStem(file) + "-pages-removed.pdf", bytes, source.getNumberOfPages())));
+			return batch("remove-pages", List.of(result(fileStem(file) + "-pages-removed.pdf", "application/pdf", bytes,
+					source.getNumberOfPages())));
 		} catch (IOException exception) {
 			throw new IllegalArgumentException("Unable to remove pages from uploaded PDF file.", exception);
 		}
 	}
 
 	public PdfBatchResponse reorderPages(MultipartFile file, String order) {
-		validatePdf(file);
+		validateFile(file, PDF_EXTENSIONS, "PDF");
 		try (PDDocument source = PDDocument.load(file.getBytes()); PDDocument reordered = new PDDocument()) {
 			List<Integer> pageOrder = parsePageOrder(order, source.getNumberOfPages());
 			for (Integer pageNumber : pageOrder) {
@@ -140,15 +168,15 @@ public class PdfToolService {
 			}
 
 			byte[] bytes = save(reordered);
-			return batch("reorder-pages",
-					List.of(result(fileStem(file) + "-reordered.pdf", bytes, reordered.getNumberOfPages())));
+			return batch("reorder-pages", List.of(result(fileStem(file) + "-reordered.pdf", "application/pdf", bytes,
+					reordered.getNumberOfPages())));
 		} catch (IOException exception) {
 			throw new IllegalArgumentException("Unable to reorder pages for uploaded PDF file.", exception);
 		}
 	}
 
 	public PdfBatchResponse addPageNumbers(MultipartFile file, String position, int startNumber) {
-		validatePdf(file);
+		validateFile(file, PDF_EXTENSIONS, "PDF");
 		if (startNumber < 0) {
 			throw new IllegalArgumentException("Start number must be zero or greater.");
 		}
@@ -161,11 +189,192 @@ public class PdfToolService {
 			}
 
 			byte[] bytes = save(source);
-			return batch("page-numbers",
-					List.of(result(fileStem(file) + "-numbered.pdf", bytes, source.getNumberOfPages())));
+			return batch("page-numbers", List.of(result(fileStem(file) + "-numbered.pdf", "application/pdf", bytes,
+					source.getNumberOfPages())));
 		} catch (IOException exception) {
 			throw new IllegalArgumentException("Unable to add page numbers to uploaded PDF file.", exception);
 		}
+	}
+
+	public PdfBatchResponse jpgToPdf(List<MultipartFile> files) {
+		if (files == null || files.isEmpty()) {
+			throw new IllegalArgumentException("At least one JPG file is required.");
+		}
+
+		try (PDDocument document = new PDDocument()) {
+			for (MultipartFile file : files) {
+				validateFile(file, JPG_EXTENSIONS, "JPG");
+				BufferedImage image = ImageIO.read(new ByteArrayInputStream(file.getBytes()));
+				if (image == null) {
+					throw new IllegalArgumentException("Unable to read uploaded JPG file: " + file.getOriginalFilename());
+				}
+
+				PDPage page = new PDPage(new PDRectangle(image.getWidth(), image.getHeight()));
+				document.addPage(page);
+				PDImageXObject pdImage = LosslessFactory.createFromImage(document, image);
+				try (PDPageContentStream contentStream = new PDPageContentStream(document, page)) {
+					contentStream.drawImage(pdImage, 0, 0, image.getWidth(), image.getHeight());
+				}
+			}
+
+			byte[] bytes = save(document);
+			return batch("jpg-to-pdf",
+					List.of(result("images-to-pdf.pdf", "application/pdf", bytes, document.getNumberOfPages())));
+		} catch (IOException exception) {
+			throw new IllegalArgumentException("Unable to convert JPG to PDF.", exception);
+		}
+	}
+
+	public PdfBatchResponse pdfToJpg(MultipartFile file, int dpi) {
+		validateFile(file, PDF_EXTENSIONS, "PDF");
+		if (dpi < 72 || dpi > 300) {
+			throw new IllegalArgumentException("DPI must be between 72 and 300.");
+		}
+
+		try (PDDocument document = PDDocument.load(file.getBytes())) {
+			PDFRenderer renderer = new PDFRenderer(document);
+			List<PdfFileResultResponse> outputs = new ArrayList<>();
+
+			for (int pageIndex = 0; pageIndex < document.getNumberOfPages(); pageIndex++) {
+				BufferedImage image = renderer.renderImageWithDPI(pageIndex, dpi);
+				ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+				ImageIO.write(image, "jpg", outputStream);
+				outputs.add(result(fileStem(file) + "-page-" + (pageIndex + 1) + ".jpg", "image/jpeg",
+						outputStream.toByteArray(), 1));
+			}
+
+			return batch("pdf-to-jpg", outputs);
+		} catch (IOException exception) {
+			throw new IllegalArgumentException("Unable to convert PDF to JPG.", exception);
+		}
+	}
+
+	public PdfBatchResponse htmlToPdf(MultipartFile file) {
+		validateFile(file, HTML_EXTENSIONS, "HTML");
+		String html = readUtf8(file);
+		ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+
+		try {
+			PdfRendererBuilder builder = new PdfRendererBuilder();
+			builder.useFastMode();
+			builder.withHtmlContent(html, null);
+			builder.toStream(outputStream);
+			builder.run();
+			byte[] bytes = outputStream.toByteArray();
+			return batch("html-to-pdf", List.of(result(fileStem(file) + ".pdf", "application/pdf", bytes, pageCount(bytes))));
+		} catch (Exception exception) {
+			throw new IllegalArgumentException("Unable to convert HTML to PDF.", exception);
+		}
+	}
+
+	public PdfBatchResponse pdfToPdfA(MultipartFile file) {
+		validateFile(file, PDF_EXTENSIONS, "PDF");
+
+		try (PDDocument document = PDDocument.load(file.getBytes())) {
+			PDDocumentInformation information = document.getDocumentInformation();
+			information.setProducer("DevTools PDF Service");
+			information.setTitle(fileStem(file));
+
+			PDDocumentCatalog catalog = document.getDocumentCatalog();
+			XMPMetadata xmp = XMPMetadata.createXMPMetadata();
+			PDFAIdentificationSchema pdfaSchema = xmp.createAndAddPDFAIdentificationSchema();
+			pdfaSchema.setPart(1);
+			pdfaSchema.setConformance("B");
+
+			ByteArrayOutputStream metadataStream = new ByteArrayOutputStream();
+			new XmpSerializer().serialize(xmp, metadataStream, true);
+			PDMetadata metadata = new PDMetadata(document);
+			metadata.importXMPMetadata(metadataStream.toByteArray());
+			catalog.setMetadata(metadata);
+
+			byte[] iccBytes = ICC_Profile.getInstance(ColorSpace.CS_sRGB).getData();
+			PDOutputIntent outputIntent = new PDOutputIntent(document, new ByteArrayInputStream(iccBytes));
+			outputIntent.setInfo("sRGB IEC61966-2.1");
+			outputIntent.setOutputCondition("sRGB IEC61966-2.1");
+			outputIntent.setOutputConditionIdentifier("sRGB IEC61966-2.1");
+			outputIntent.setRegistryName("https://www.color.org");
+			catalog.addOutputIntent(outputIntent);
+
+			byte[] bytes = save(document);
+			return batch("pdf-to-pdfa",
+					List.of(result(fileStem(file) + "-pdfa.pdf", "application/pdf", bytes, document.getNumberOfPages())));
+		} catch (Exception exception) {
+			throw new IllegalArgumentException("Unable to convert PDF to PDF/A.", exception);
+		}
+	}
+
+	public PdfBatchResponse wordToPdf(MultipartFile file) {
+		return officeToPdf(file, WORD_EXTENSIONS, "word-to-pdf");
+	}
+
+	public PdfBatchResponse powerpointToPdf(MultipartFile file) {
+		return officeToPdf(file, POWERPOINT_EXTENSIONS, "powerpoint-to-pdf");
+	}
+
+	public PdfBatchResponse excelToPdf(MultipartFile file) {
+		return officeToPdf(file, EXCEL_EXTENSIONS, "excel-to-pdf");
+	}
+
+	public PdfBatchResponse pdfToWord(MultipartFile file) {
+		return officeConvert(file, PDF_EXTENSIONS, "docx", DOCX_CONTENT_TYPE, "pdf-to-word");
+	}
+
+	public PdfBatchResponse pdfToPowerpoint(MultipartFile file) {
+		return officeConvert(file, PDF_EXTENSIONS, "pptx", PPTX_CONTENT_TYPE, "pdf-to-powerpoint");
+	}
+
+	public PdfBatchResponse pdfToExcel(MultipartFile file) {
+		return officeConvert(file, PDF_EXTENSIONS, "xlsx", XLSX_CONTENT_TYPE, "pdf-to-excel");
+	}
+
+	private static final String DOCX_CONTENT_TYPE = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+	private static final String PPTX_CONTENT_TYPE = "application/vnd.openxmlformats-officedocument.presentationml.presentation";
+	private static final String XLSX_CONTENT_TYPE = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+
+	private PdfBatchResponse officeToPdf(MultipartFile file, Set<String> allowedExtensions, String operation) {
+		return officeConvert(file, allowedExtensions, "pdf", "application/pdf", operation);
+	}
+
+	private PdfBatchResponse officeConvert(MultipartFile file, Set<String> allowedExtensions, String targetExtension,
+			String contentType, String operation) {
+		validateFile(file, allowedExtensions, extensionLabel(allowedExtensions));
+
+		Path tempDirectory = null;
+		try {
+			tempDirectory = Files.createTempDirectory("devtool-office-" + randomSuffix());
+			String inputName = sanitizeFileName(file.getOriginalFilename());
+			Path inputFile = tempDirectory.resolve(inputName);
+			Files.write(inputFile, file.getBytes());
+
+			ProcessBuilder processBuilder = new ProcessBuilder(resolveSofficeExecutable(), "--headless", "--convert-to",
+					targetExtension, "--outdir", tempDirectory.toString(), inputFile.toString());
+			processBuilder.redirectErrorStream(true);
+			Process process = processBuilder.start();
+			String outputLog = new String(process.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
+			int exitCode = process.waitFor();
+
+			Path outputFile = tempDirectory.resolve(replaceExtension(inputName, targetExtension));
+			if (exitCode != 0 || Files.notExists(outputFile)) {
+				throw new IllegalArgumentException(
+						"LibreOffice conversion is unavailable or failed for this file type. " + outputLog.strip());
+			}
+
+			byte[] bytes = Files.readAllBytes(outputFile);
+			int pageCount = "pdf".equalsIgnoreCase(targetExtension) ? pageCount(bytes) : 0;
+			return batch(operation, List.of(result(outputFile.getFileName().toString(), contentType, bytes, pageCount)));
+		} catch (InterruptedException exception) {
+			Thread.currentThread().interrupt();
+			throw new IllegalArgumentException("Office conversion was interrupted.", exception);
+		} catch (IOException exception) {
+			throw new IllegalArgumentException("Office conversion is unavailable in this environment.", exception);
+		} finally {
+			deleteDirectoryQuietly(tempDirectory);
+		}
+	}
+
+	private String resolveSofficeExecutable() {
+		String configured = System.getenv("SOFFICE_PATH");
+		return configured == null || configured.isBlank() ? "soffice" : configured;
 	}
 
 	private PdfBatchResponse batch(String operation, List<PdfFileResultResponse> files) {
@@ -176,7 +385,7 @@ public class PdfToolService {
 		try (PDDocument output = new PDDocument()) {
 			output.importPage(source.getPage(pageIndex));
 			byte[] bytes = save(output);
-			return result(fileName, bytes, output.getNumberOfPages());
+			return result(fileName, "application/pdf", bytes, output.getNumberOfPages());
 		}
 	}
 
@@ -186,12 +395,12 @@ public class PdfToolService {
 				output.importPage(source.getPage(pageIndex));
 			}
 			byte[] bytes = save(output);
-			return result(fileName, bytes, output.getNumberOfPages());
+			return result(fileName, "application/pdf", bytes, output.getNumberOfPages());
 		}
 	}
 
-	private PdfFileResultResponse result(String fileName, byte[] bytes, int pageCount) {
-		return new PdfFileResultResponse(fileName, "application/pdf", bytes.length, pageCount,
+	private PdfFileResultResponse result(String fileName, String contentType, byte[] bytes, int pageCount) {
+		return new PdfFileResultResponse(fileName, contentType, bytes.length, pageCount,
 				Base64.getEncoder().encodeToString(bytes));
 	}
 
@@ -201,23 +410,59 @@ public class PdfToolService {
 		return outputStream.toByteArray();
 	}
 
-	private void validatePdf(MultipartFile file) {
-		if (file == null || file.isEmpty()) {
-			throw new IllegalArgumentException("A PDF file is required.");
-		}
-
-		String fileName = file.getOriginalFilename();
-		if (fileName == null || !fileName.toLowerCase().endsWith(".pdf")) {
-			throw new IllegalArgumentException("Only PDF files are supported.");
+	private int pageCount(byte[] pdfBytes) throws IOException {
+		try (PDDocument document = PDDocument.load(pdfBytes)) {
+			return document.getNumberOfPages();
 		}
 	}
 
+	private void validateFile(MultipartFile file, Set<String> extensions, String label) {
+		if (file == null || file.isEmpty()) {
+			throw new IllegalArgumentException("A " + label + " file is required.");
+		}
+
+		String extension = extension(file.getOriginalFilename());
+		if (extension == null || !extensions.contains(extension.toLowerCase())) {
+			throw new IllegalArgumentException("Only " + label + " files are supported.");
+		}
+	}
+
+	private String extensionLabel(Set<String> extensions) {
+		return String.join("/", extensions).toUpperCase();
+	}
+
+	private String extension(String fileName) {
+		if (fileName == null || !fileName.contains(".")) {
+			return null;
+		}
+		return fileName.substring(fileName.lastIndexOf('.') + 1);
+	}
+
 	private String fileStem(MultipartFile file) {
-		String fileName = file.getOriginalFilename();
-		if (fileName == null) {
+		String fileName = sanitizeFileName(file.getOriginalFilename());
+		int lastDot = fileName.lastIndexOf('.');
+		return lastDot > 0 ? fileName.substring(0, lastDot) : fileName;
+	}
+
+	private String sanitizeFileName(String fileName) {
+		if (fileName == null || fileName.isBlank()) {
 			return "document";
 		}
-		return fileName.replaceFirst("(?i)\\.pdf$", "");
+		return Path.of(fileName).getFileName().toString();
+	}
+
+	private String replaceExtension(String fileName, String targetExtension) {
+		int lastDot = fileName.lastIndexOf('.');
+		String stem = lastDot > 0 ? fileName.substring(0, lastDot) : fileName;
+		return stem + "." + targetExtension;
+	}
+
+	private String readUtf8(MultipartFile file) {
+		try {
+			return new String(file.getBytes(), StandardCharsets.UTF_8);
+		} catch (IOException exception) {
+			throw new IllegalArgumentException("Unable to read uploaded file.", exception);
+		}
 	}
 
 	private List<int[]> parseRanges(String ranges, int pageCount) {
@@ -311,13 +556,31 @@ public class PdfToolService {
 		default -> throw new IllegalArgumentException("Unsupported page number position: " + position);
 		};
 
-		try (PDPageContentStream contentStream = new PDPageContentStream(document, page,
-				PDPageContentStream.AppendMode.APPEND, true, true)) {
+		try (PDPageContentStream contentStream = new PDPageContentStream(document, page, AppendMode.APPEND, true, true)) {
 			contentStream.beginText();
 			contentStream.setFont(PDType1Font.HELVETICA, fontSize);
 			contentStream.newLineAtOffset(x, y);
 			contentStream.showText(text);
 			contentStream.endText();
 		}
+	}
+
+	private void deleteDirectoryQuietly(Path directory) {
+		if (directory == null) {
+			return;
+		}
+		try (var stream = Files.walk(directory)) {
+			stream.sorted((left, right) -> right.compareTo(left)).forEach(path -> {
+				try {
+					Files.deleteIfExists(path);
+				} catch (IOException ignored) {
+				}
+			});
+		} catch (IOException ignored) {
+		}
+	}
+
+	private String randomSuffix() {
+		return Long.toHexString(new SecureRandom().nextLong());
 	}
 }

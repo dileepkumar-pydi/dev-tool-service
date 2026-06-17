@@ -80,6 +80,57 @@ public class PdfToolController {
 				"PDF page numbers added successfully");
 	}
 
+	@PostMapping(path = "/jpg-to-pdf", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+	public ApiResponse<PdfBatchResponse> jpgToPdf(@RequestParam("files") List<MultipartFile> files) {
+		return apiResponseFactory.success(pdfToolService.jpgToPdf(files), "JPG converted to PDF successfully");
+	}
+
+	@PostMapping(path = "/pdf-to-jpg", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+	public ApiResponse<PdfBatchResponse> pdfToJpg(@RequestParam("file") MultipartFile file,
+			@RequestParam(name = "dpi", defaultValue = "144") int dpi) {
+		return apiResponseFactory.success(pdfToolService.pdfToJpg(file, dpi), "PDF converted to JPG successfully");
+	}
+
+	@PostMapping(path = "/html-to-pdf", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+	public ApiResponse<PdfBatchResponse> htmlToPdf(@RequestParam("file") MultipartFile file) {
+		return apiResponseFactory.success(pdfToolService.htmlToPdf(file), "HTML converted to PDF successfully");
+	}
+
+	@PostMapping(path = "/pdf-to-pdfa", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+	public ApiResponse<PdfBatchResponse> pdfToPdfA(@RequestParam("file") MultipartFile file) {
+		return apiResponseFactory.success(pdfToolService.pdfToPdfA(file), "PDF converted to PDF/A successfully");
+	}
+
+	@PostMapping(path = "/word-to-pdf", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+	public ApiResponse<PdfBatchResponse> wordToPdf(@RequestParam("file") MultipartFile file) {
+		return apiResponseFactory.success(pdfToolService.wordToPdf(file), "Word converted to PDF successfully");
+	}
+
+	@PostMapping(path = "/powerpoint-to-pdf", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+	public ApiResponse<PdfBatchResponse> powerpointToPdf(@RequestParam("file") MultipartFile file) {
+		return apiResponseFactory.success(pdfToolService.powerpointToPdf(file), "PowerPoint converted to PDF successfully");
+	}
+
+	@PostMapping(path = "/excel-to-pdf", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+	public ApiResponse<PdfBatchResponse> excelToPdf(@RequestParam("file") MultipartFile file) {
+		return apiResponseFactory.success(pdfToolService.excelToPdf(file), "Excel converted to PDF successfully");
+	}
+
+	@PostMapping(path = "/pdf-to-word", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+	public ApiResponse<PdfBatchResponse> pdfToWord(@RequestParam("file") MultipartFile file) {
+		return apiResponseFactory.success(pdfToolService.pdfToWord(file), "PDF converted to Word successfully");
+	}
+
+	@PostMapping(path = "/pdf-to-powerpoint", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+	public ApiResponse<PdfBatchResponse> pdfToPowerpoint(@RequestParam("file") MultipartFile file) {
+		return apiResponseFactory.success(pdfToolService.pdfToPowerpoint(file), "PDF converted to PowerPoint successfully");
+	}
+
+	@PostMapping(path = "/pdf-to-excel", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+	public ApiResponse<PdfBatchResponse> pdfToExcel(@RequestParam("file") MultipartFile file) {
+		return apiResponseFactory.success(pdfToolService.pdfToExcel(file), "PDF converted to Excel successfully");
+	}
+
 	@ExceptionHandler(IllegalArgumentException.class)
 	public ResponseEntity<ApiResponse<ErrorResponse>> handleIllegalArgument(IllegalArgumentException exception) {
 		return ResponseEntity.badRequest()
