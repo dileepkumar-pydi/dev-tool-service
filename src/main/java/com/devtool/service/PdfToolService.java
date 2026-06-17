@@ -342,12 +342,15 @@ public class PdfToolService {
 		Path tempDirectory = null;
 		try {
 			tempDirectory = Files.createTempDirectory("devtool-office-" + randomSuffix());
+			Path libreOfficeProfile = tempDirectory.resolve("lo-profile");
+			Files.createDirectories(libreOfficeProfile);
 			String inputName = sanitizeFileName(file.getOriginalFilename());
 			Path inputFile = tempDirectory.resolve(inputName);
 			Files.write(inputFile, file.getBytes());
 
-			ProcessBuilder processBuilder = new ProcessBuilder(resolveSofficeExecutable(), "--headless", "--convert-to",
-					targetExtension, "--outdir", tempDirectory.toString(), inputFile.toString());
+			ProcessBuilder processBuilder = new ProcessBuilder(resolveSofficeExecutable(), "--headless",
+					"-env:UserInstallation=" + libreOfficeProfile.toUri(), "--convert-to", targetExtension, "--outdir",
+					tempDirectory.toString(), inputFile.toString());
 			processBuilder.redirectErrorStream(true);
 			Process process = processBuilder.start();
 			String outputLog = new String(process.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
@@ -366,7 +369,9 @@ public class PdfToolService {
 			Thread.currentThread().interrupt();
 			throw new IllegalArgumentException("Office conversion was interrupted.", exception);
 		} catch (IOException exception) {
-			throw new IllegalArgumentException("Office conversion is unavailable in this environment.", exception);
+			throw new IllegalArgumentException(
+					"Office conversion is unavailable in this environment. LibreOffice/soffice is missing or not executable.",
+					exception);
 		} finally {
 			deleteDirectoryQuietly(tempDirectory);
 		}
