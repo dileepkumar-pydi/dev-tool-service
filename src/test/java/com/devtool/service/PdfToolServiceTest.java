@@ -5,9 +5,13 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.awt.Color;
+import java.awt.image.BufferedImage;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.Base64;
+
+import javax.imageio.ImageIO;
 
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.pdmodel.PDPage;
@@ -72,6 +76,24 @@ class PdfToolServiceTest {
 	}
 
 	@Test
+	void shouldConvertJpgAndHtmlAndPdfA() throws IOException {
+		PdfFileResultResponse jpgToPdf = service.jpgToPdf(java.util.List.of(jpgFile("photo.jpg"))).files().get(0);
+		assertEquals(1, pageCount(jpgToPdf));
+
+		PdfBatchResponse pdfToJpg = service.pdfToJpg(pdfFile("sample.pdf", 2), 144);
+		assertEquals(2, pdfToJpg.files().size());
+		assertEquals("image/jpeg", pdfToJpg.files().get(0).contentType());
+
+		PdfFileResultResponse htmlToPdf = service.htmlToPdf(
+				new MockMultipartFile("file", "page.html", "text/html", "<html><body><h1>Hello</h1></body></html>".getBytes()))
+				.files().get(0);
+		assertEquals(1, pageCount(htmlToPdf));
+
+		PdfFileResultResponse pdfA = service.pdfToPdfA(pdfFile("pdfa.pdf", 1)).files().get(0);
+		assertEquals(1, pageCount(pdfA));
+	}
+
+	@Test
 	void shouldRejectInvalidRequests() throws IOException {
 		assertThrows(IllegalArgumentException.class, () -> service.merge(java.util.List.of(pdfFile("one.pdf", 1))));
 		assertThrows(IllegalArgumentException.class, () -> service.rotate(pdfFile("rotate.pdf", 1), 45));
@@ -96,5 +118,19 @@ class PdfToolServiceTest {
 
 	private PDDocument load(PdfFileResultResponse response) throws IOException {
 		return PDDocument.load(Base64.getDecoder().decode(response.base64Content()));
+	}
+
+	private MockMultipartFile jpgFile(String fileName) throws IOException {
+		BufferedImage image = new BufferedImage(120, 80, BufferedImage.TYPE_INT_RGB);
+		var graphics = image.createGraphics();
+		graphics.setColor(Color.WHITE);
+		graphics.fillRect(0, 0, 120, 80);
+		graphics.setColor(Color.BLUE);
+		graphics.fillRect(10, 10, 100, 60);
+		graphics.dispose();
+
+		ByteArrayOutputStream output = new ByteArrayOutputStream();
+		ImageIO.write(image, "jpg", output);
+		return new MockMultipartFile("file", fileName, "image/jpeg", output.toByteArray());
 	}
 }
