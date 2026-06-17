@@ -37,3 +37,17 @@ The service now also includes:
 Browse the API docs after starting the app:
 
 - `http://localhost:8080/swagger-ui/index.html`
+
+## Render deployment for Office/PDF conversions
+
+The PDF conversion endpoints for `Word/Excel/PowerPoint <-> PDF` depend on LibreOffice (`soffice`).
+
+If you deploy this service on Render:
+
+- deploy it as a `Docker` web service, not a plain native Java service
+- use the included [Dockerfile](/Users/mac/Documents/code/devTools/dev-tool-service/Dockerfile), which installs LibreOffice
+- keep `SOFFICE_PATH=/usr/bin/soffice` in the runtime environment
+
+Without LibreOffice in the runtime image, these endpoints will return:
+
+- `Office conversion is unavailable in this environment.`
