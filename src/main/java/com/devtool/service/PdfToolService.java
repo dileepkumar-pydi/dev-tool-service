@@ -316,15 +316,15 @@ public class PdfToolService {
 	}
 
 	public PdfBatchResponse pdfToWord(MultipartFile file) {
-		return officeConvert(file, PDF_EXTENSIONS, "docx", DOCX_CONTENT_TYPE, "pdf-to-word");
+		throw unsupportedPdfOfficeConversion("Word");
 	}
 
 	public PdfBatchResponse pdfToPowerpoint(MultipartFile file) {
-		return officeConvert(file, PDF_EXTENSIONS, "pptx", PPTX_CONTENT_TYPE, "pdf-to-powerpoint");
+		throw unsupportedPdfOfficeConversion("PowerPoint");
 	}
 
 	public PdfBatchResponse pdfToExcel(MultipartFile file) {
-		return officeConvert(file, PDF_EXTENSIONS, "xlsx", XLSX_CONTENT_TYPE, "pdf-to-excel");
+		throw unsupportedPdfOfficeConversion("Excel");
 	}
 
 	private static final String DOCX_CONTENT_TYPE = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
@@ -332,11 +332,12 @@ public class PdfToolService {
 	private static final String XLSX_CONTENT_TYPE = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
 
 	private PdfBatchResponse officeToPdf(MultipartFile file, Set<String> allowedExtensions, String operation) {
-		return officeConvert(file, allowedExtensions, "pdf", "application/pdf", operation);
+		return officeConvert(file, allowedExtensions, "pdf", "application/pdf", operation,
+				pdfExportFilter(allowedExtensions));
 	}
 
 	private PdfBatchResponse officeConvert(MultipartFile file, Set<String> allowedExtensions, String targetExtension,
-			String contentType, String operation) {
+			String contentType, String operation, String convertToValue) {
 		validateFile(file, allowedExtensions, extensionLabel(allowedExtensions));
 
 		Path tempDirectory = null;
@@ -349,11 +350,12 @@ public class PdfToolService {
 			Files.write(inputFile, file.getBytes());
 
 			ProcessBuilder processBuilder = new ProcessBuilder(resolveSofficeExecutable(), "--headless",
-					"-env:UserInstallation=" + libreOfficeProfile.toUri(), "--convert-to", targetExtension, "--outdir",
+					"-env:UserInstallation=" + libreOfficeProfile.toUri(), "--convert-to", convertToValue, "--outdir",
 					tempDirectory.toString(), inputFile.toString());
 			processBuilder.redirectErrorStream(true);
 			Process process = processBuilder.start();
-			String outputLog = new String(process.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
+			String outputLog = sanitizeLibreOfficeLog(
+					new String(process.getInputStream().readAllBytes(), StandardCharsets.UTF_8));
 			int exitCode = process.waitFor();
 
 			Path outputFile = tempDirectory.resolve(replaceExtension(inputName, targetExtension));
@@ -375,6 +377,39 @@ public class PdfToolService {
 		} finally {
 			deleteDirectoryQuietly(tempDirectory);
 		}
+	}
+
+	private IllegalArgumentException unsupportedPdfOfficeConversion(String targetLabel) {
+		return new IllegalArgumentException(
+				"PDF to " + targetLabel
+						+ " is not supported by the current backend conversion engine. LibreOffice can convert Office files to PDF, but it does not reliably export PDFs back to editable "
+						+ targetLabel + " documents.");
+	}
+
+	private String pdfExportFilter(Set<String> allowedExtensions) {
+		if (allowedExtensions.equals(WORD_EXTENSIONS)) {
+			return "pdf:writer_pdf_Export";
+		}
+		if (allowedExtensions.equals(EXCEL_EXTENSIONS)) {
+			return "pdf:calc_pdf_Export";
+		}
+		if (allowedExtensions.equals(POWERPOINT_EXTENSIONS)) {
+			return "pdf:impress_pdf_Export";
+		}
+		return "pdf";
+	}
+
+	private String sanitizeLibreOfficeLog(String outputLog) {
+		if (outputLog == null || outputLog.isBlank()) {
+			return "";
+		}
+
+		return outputLog.lines()
+				.filter(line -> !line.contains("javaldx"))
+				.map(String::trim)
+				.filter(line -> !line.isBlank())
+				.reduce((left, right) -> left + "\n" + right)
+				.orElse("");
 	}
 
 	private String resolveSofficeExecutable() {

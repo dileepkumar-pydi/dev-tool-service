@@ -1,4 +1,4 @@
 package com.devtool.dto;
 
-public record ErrorResponse(String error) {
+public record ErrorResponse(String message) {
 }
